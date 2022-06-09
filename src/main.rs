@@ -25,20 +25,38 @@ fn handle_connection(mut stream: TcpStream) {
     // read mutates internal state so we need mutable stream param
     stream.read(&mut buffer).unwrap();
 
-    // convert slices to string including invalid chars
-    // println!("Request: {}", String::from_utf8_lossy(&buffer[..]))
+    let get = b"GET / HTTP/1.1\r\n";
 
-    let contents = fs::read_to_string("index.html").unwrap();
+    if buffer.starts_with(get) {
+        // convert slices to string including invalid chars
+        // println!("Request: {}", String::from_utf8_lossy(&buffer[..]))
+        let contents = fs::read_to_string("index.html").unwrap();
 
-    let response = format!(
-        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-        contents.len(),
-        contents
-    );
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+            contents.len(),
+            contents
+        );
 
-    // write the response to the stream as bytes
-    stream.write(response.as_bytes()).unwrap();
+        // write the response to the stream as bytes
+        stream.write(response.as_bytes()).unwrap();
 
-    // flush the stream
-    stream.flush().unwrap();
+        // flush the stream
+        stream.flush().unwrap();
+    } else {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+
+        let contents = fs::read_to_string("404.html").unwrap();
+
+        let response = format!(
+            "{}\r\nContent-Length: {}\r\n\r\n{}",
+            status_line,
+            contents.len(),
+            contents
+        );
+
+        stream.write(response.as_bytes()).unwrap();
+
+        stream.flush().unwrap();
+    }
 }
