@@ -1,17 +1,25 @@
-use std::fs;
+use server::ThreadPool;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
+use std::time::Duration;
+use std::{fs, thread};
 
 fn main() {
     // listening to tcp requests, by binding the listener to localhost with 7878 port
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
+    // create a thread pool of 4 threads ready to pick a job
+    let pool = ThreadPool::new(4);
+
     // loop through connections/streams by iterating over the incoming streams
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        // take in mutable tcp stream as input
-        handle_connection(stream)
+        // will take a closure and give it to the thread pool for it to be executed
+        pool.execute(|| {
+            // take in mutable tcp stream as input
+            handle_connection(stream)
+        })
     }
 }
 
@@ -26,8 +34,12 @@ fn handle_connection(mut stream: TcpStream) {
     stream.read(&mut buffer).unwrap();
 
     let get = b"GET / HTTP/1.1\r\n";
+    let sleep = b"GET /sleep HTTP/1.1\r\n";
 
     let (status_line, filename) = if buffer.starts_with(get) {
+        ("HTTP/1.1 200 OK", "index.html")
+    } else if buffer.starts_with(sleep) {
+        thread::sleep(Duration::from_secs(5));
         ("HTTP/1.1 200 OK", "index.html")
     } else {
         ("HTTP/1.1 404 NOT FOUND", "404.html")
